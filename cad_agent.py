@@ -92,7 +92,8 @@ def call_model_with_key_rotation(
                         model=model_name,
                         temperature=temperature,
                         max_tokens=max_tokens,
-                        api_key=key
+                        api_key=key,
+                        reasoning_format="hidden"
                     )
                     return invoke_with_retry(llm, messages)
                 except Exception as e:
@@ -252,6 +253,7 @@ def node_cad_generator(state: AgentState) -> AgentState:
         "You are an expert Python programmer for CAD.\n"
         "Generate valid, syntax-clean Python code using the `solid2` library to create the requested CAD model.\n"
         "Your code MUST end by calling exactly: `model.save_as_scad('model.scad')` assuming your geometry is named `model`.\n"
+        "CRITICAL: Keep your internal <think> reasoning EXTREMELY brief (under 100 words). If you think too much, your output will be truncated and the Python code will be lost!\n"
         "Linting hints (AVOID THESE):\n"
         "- Do not overlap faces exactly (z-fighting). Use slight overlaps (+0.01) for boolean operations.\n"
         "- Define variables explicitly at the top.\n"
@@ -284,6 +286,10 @@ def node_cad_generator(state: AgentState) -> AgentState:
     )
     
     python_code = _extract_python_block(response.content)
+    print(f"-> Extracted Python code length: {len(python_code)}")
+    if len(python_code) == 0:
+        print(f"-> [Debug] Raw response was:\n{response.content}")
+    
     state["scad_code"] = python_code # Using the same key 'scad_code' to represent the generator code
     return state
 
