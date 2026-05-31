@@ -143,16 +143,8 @@ def main():
             scad_path = f"{output_prefix}.scad"
             print(f"-> Executing Assembly Script...")
             
-            # Create a wrapper script to run the assembly and ensure it generates 'model.scad'
-            wrapper_file = os.path.join(exp_dir, "run_assembly.py")
-            with open(wrapper_file, "w", encoding="utf-8") as f:
-                f.write(f"import sys\nsys.path.append(r'{os.path.abspath(exp_dir)}')\n")
-                f.write("import assembly\n")
-                f.write(f"assembly.main()\n")
-                f.write(f"import os\nif os.path.exists('model.scad'):\n  os.rename('model.scad', r'{os.path.abspath(scad_path)}')\n")
-
             try:
-                subprocess.run([sys.executable, "run_assembly.py"], cwd=exp_dir, capture_output=True, text=True, check=True)
+                subprocess.run([sys.executable, "assembly.py"], cwd=exp_dir, capture_output=True, text=True, check=True)
                 print("-> Verified generation of SCAD.")
                 export_files(scad_path, output_prefix)
             except subprocess.CalledProcessError as e:
