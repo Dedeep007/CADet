@@ -82,7 +82,7 @@ def export_files(scad_file: str, base_name: str):
     print(f"-> Exporting {png_file} via OpenSCAD (Screenshot)...")
     cmd_png = ["openscad", "-o", png_file, "--autocenter", "--viewall", "--colorscheme", "Tomorrow Night", scad_file]
     try:
-        subprocess.run(cmd_png, capture_output=True, text=True, check=True)
+        subprocess.run(cmd_png, capture_output=True, text=True, check=True, shell=(sys.platform == "win32"))
     except subprocess.CalledProcessError as e:
         print(f"[Warning] OpenSCAD PNG export failed: {e.stderr}", file=sys.stderr)
         
@@ -90,7 +90,7 @@ def export_files(scad_file: str, base_name: str):
     print(f"-> Exporting {stl_file} via OpenSCAD...")
     cmd_stl = ["openscad", "-o", stl_file, scad_file]
     try:
-        subprocess.run(cmd_stl, capture_output=True, text=True, check=True)
+        subprocess.run(cmd_stl, capture_output=True, text=True, check=True, shell=(sys.platform == "win32"))
     except subprocess.CalledProcessError as e:
         print(f"[Error] OpenSCAD STL export failed: {e.stderr}", file=sys.stderr)
 
