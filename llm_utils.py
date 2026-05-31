@@ -86,24 +86,21 @@ def call_model_with_key_rotation(models_to_try: List[tuple], messages: List[Any]
 def _extract_json_block(text: Any) -> dict:
     """Safely extracts JSON from an LLM response block."""
     import json
+    import re
     if not isinstance(text, str):
         text = text.content if hasattr(text, 'content') else str(text)
         
-    start_idx = text.find("```json")
-    if start_idx != -1:
-        start_idx += 7
-        end_idx = text.find("```", start_idx)
-        if end_idx != -1:
-            text = text[start_idx:end_idx].strip()
+    # Find block using regex to handle case insensitivity and optional whitespace
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.IGNORECASE | re.DOTALL)
+    if match:
+        text = match.group(1)
     else:
-        # Try raw block
-        start_idx = text.find("```")
-        if start_idx != -1:
-            start_idx += 3
-            end_idx = text.find("```", start_idx)
-            if end_idx != -1:
-                text = text[start_idx:end_idx].strip()
-                
+        # Try to find the first { and last }
+        start_idx = text.find("{")
+        end_idx = text.rfind("}")
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+            text = text[start_idx:end_idx+1]
+            
     try:
         return json.loads(text.strip())
     except Exception as e:

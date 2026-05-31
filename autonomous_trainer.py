@@ -152,7 +152,7 @@ def main():
                 f.write(f"import os\nif os.path.exists('model.scad'):\n  os.rename('model.scad', r'{os.path.abspath(scad_path)}')\n")
 
             try:
-                subprocess.run([sys.executable, wrapper_file], cwd=exp_dir, capture_output=True, text=True, check=True)
+                subprocess.run([sys.executable, "run_assembly.py"], cwd=exp_dir, capture_output=True, text=True, check=True)
                 print("-> Verified generation of SCAD.")
                 export_files(scad_path, output_prefix)
             except subprocess.CalledProcessError as e:
