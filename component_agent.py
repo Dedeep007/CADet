@@ -18,17 +18,16 @@ def node_generator(state: ComponentState) -> ComponentState:
     print(f"  -> Generating code for {state['component_name']} (Retry {state['retry_count']})")
     system_prompt = (
         "You are an expert Python programmer for CAD.\n"
-        "Generate valid, syntax-clean Python code using the `solid2` library to create the requested component.\n"
-        "Your code MUST end by defining a function `get_component()` that returns the solid2 geometry object.\n"
-        "DO NOT call `save_as_scad`. The assembler agent will handle saving.\n"
+        "Generate valid, syntax-clean Python code using the `cadquery` library to create the requested component.\n"
+        "Your code MUST end by defining a function `get_component()` that returns a `cadquery.Workplane` or `cadquery.Assembly` object.\n"
         "Example:\n"
         "```python\n"
-        "from solid2 import *\n\n"
+        "import cadquery as cq\n\n"
         "def get_component():\n"
-        "    return cube(10)\n"
+        "    return cq.Workplane('XY').box(10, 10, 10)\n"
         "```\n"
         "CRITICAL: Keep your internal <think> reasoning EXTREMELY brief (under 100 words).\n"
-        "Linting hints: Define variables explicitly. Avoid z-fighting."
+        "Linting hints: Define variables explicitly. Remember to import cadquery as cq."
     )
     
     human_content = f"Design Component: {state['component_name']}\nConstraints:\n"
@@ -65,8 +64,8 @@ def node_linter(state: ComponentState) -> ComponentState:
         errors.append("Empty code provided.")
     elif "def get_component():" not in code:
         errors.append("Missing required function definition: def get_component():")
-    elif "save_as_scad" in code:
-        errors.append("Do not call save_as_scad(). Just return the geometry.")
+    elif "import cadquery" not in code and "import cadquery as cq" not in code:
+        errors.append("Missing import: import cadquery as cq")
         
     if not errors:
         # Syntax check

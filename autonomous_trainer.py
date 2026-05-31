@@ -32,7 +32,7 @@ def vision_inspect_and_improve(png_path: str, original_prompt: str, scad_code: s
         {
             "type": "text", 
             "text": f"Original Design Goal: {original_prompt}\n\n"
-                    f"Look at this rendered screenshot of the generated OpenSCAD assembly.\n"
+                    f"Look at this rendered screenshot of the generated CadQuery assembly.\n"
                     f"1. Does it physically resemble the design goal?\n"
                     f"2. Are there obvious defects (missing holes, misaligned parts, intersecting solids that shouldn't intersect)?\n"
                     f"3. Are the proportions realistic for the physical world?\n\n"
@@ -69,30 +69,29 @@ BASE_PROMPTS = [
     "A drone frame optimized for 5-inch props with exact mounting holes for a 30.5x30.5mm flight controller stack. Needs structural cross-bracing."
 ]
 
-def export_files(scad_file: str, base_name: str):
-    """Exports PNG and STL using OpenSCAD."""
-    if not os.path.exists(scad_file):
-        print(f"[Error] {scad_file} does not exist.")
+def export_files(stl_file: str, base_name: str):
+    """Exports PNG from STL using OpenSCAD as a rendering engine."""
+    if not os.path.exists(stl_file):
+        print(f"[Error] {stl_file} does not exist.")
         return
         
     png_file = f"{base_name}.png"
-    stl_file = f"{base_name}.stl"
+    
+    # Create a temporary wrapper scad file that imports the STL
+    wrapper_scad = f"{base_name}_render.scad"
+    with open(wrapper_scad, "w", encoding="utf-8") as f:
+        f.write(f'import("{os.path.basename(stl_file)}");\n')
     
     # Export PNG
     print(f"-> Exporting {png_file} via OpenSCAD (Screenshot)...")
-    cmd_png = ["openscad", "-o", png_file, "--autocenter", "--viewall", "--colorscheme", "Tomorrow Night", scad_file]
+    cmd_png = ["openscad", "-o", png_file, "--autocenter", "--viewall", "--colorscheme", "Tomorrow Night", wrapper_scad]
     try:
         subprocess.run(cmd_png, capture_output=True, text=True, check=True, shell=(sys.platform == "win32"))
     except subprocess.CalledProcessError as e:
         print(f"[Warning] OpenSCAD PNG export failed: {e.stderr}", file=sys.stderr)
         
-    # Export STL
-    print(f"-> Exporting {stl_file} via OpenSCAD...")
-    cmd_stl = ["openscad", "-o", stl_file, scad_file]
-    try:
-        subprocess.run(cmd_stl, capture_output=True, text=True, check=True, shell=(sys.platform == "win32"))
-    except subprocess.CalledProcessError as e:
-        print(f"[Error] OpenSCAD STL export failed: {e.stderr}", file=sys.stderr)
+    if os.path.exists(wrapper_scad):
+        os.remove(wrapper_scad)
 
 def main():
     os.makedirs("experiments", exist_ok=True)
@@ -139,25 +138,21 @@ def main():
             with open(assembly_file, "w", encoding="utf-8") as f:
                 f.write(assembly_code)
                 
-            # 4. Generate the scad
-            scad_path = f"{output_prefix}.scad"
-            print(f"-> Executing Assembly Script...")
+            # 4. Generate the models (CadQuery script saves .stl)
+            stl_path = f"{output_prefix}.stl"
+            print(f"-> Executing CadQuery Assembly Script...")
             
             try:
                 subprocess.run([sys.executable, "assembly.py"], cwd=exp_dir, capture_output=True, text=True, check=True)
-                print("-> Verified generation of SCAD.")
-                export_files(scad_path, output_prefix)
+                print("-> Verified generation of CAD models.")
+                export_files(stl_path, output_prefix)
             except subprocess.CalledProcessError as e:
                 print(f"[Error] Assembly Execution failed: {e.stderr}", file=sys.stderr)
             
             # 5. Vision Inspection
             png_path = f"{output_prefix}.png"
             if refinement_step < 2:
-                scad_code = ""
-                if os.path.exists(scad_path):
-                    with open(scad_path, "r") as f:
-                        scad_code = f.read()
-                current_prompt = vision_inspect_and_improve(png_path, base_prompt, scad_code)
+                current_prompt = vision_inspect_and_improve(png_path, base_prompt, assembly_code)
                 print(f"\n[Trainer] New improved feedback generated for Architect.")
             
             time.sleep(10) # API pacing
